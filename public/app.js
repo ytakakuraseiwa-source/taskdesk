@@ -107,10 +107,10 @@ function add(titles) {
   return change(titles.map(title => ({ id: crypto.randomUUID(), title, status: 'todo', created: Date.now(), deleted: 0 })));
 }
 
-async function api(path, body) {
+async function api(path, body, timeout = 12000) {
   const response = await fetch(path, {
     ...(body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-    signal: AbortSignal.timeout(12000)
+    signal: AbortSignal.timeout(timeout)
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || '通信に失敗しました。');
@@ -251,7 +251,7 @@ ai.onclick = async () => {
   suggestions.hidden = true;
   tell('AIがタスクを作成中…');
   try {
-    const data = await api('/api/ai', { draft });
+    const data = await api('/api/ai', { draft }, 30000);
     if (aiRequest !== request) return;
     $('#choices').replaceChildren(...data.titles.map(title => {
       const label = element('label', '');
