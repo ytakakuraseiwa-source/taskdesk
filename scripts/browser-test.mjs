@@ -166,7 +166,9 @@ test('完了タスクに履歴を追加し、再開・絞り込み・削除が�
     await history.locator('#history-entries').getByText('完了', { exact: true }).waitFor();
     await history.getByLabel('内容').fill('見積もりを送付した');
     await history.getByRole('button', { name: '履歴に追加' }).click();
-    assert.equal(await page.locator('[data-filter=records]').getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.locator('[data-filter=all]').getAttribute('aria-pressed'), 'true');
+    await history.getByRole('button', { name: '履歴を閉じる' }).click();
+    assert.equal(await row.count(), 0);
     await page.reload();
     await page.locator('[data-filter=done]').click();
     assert.equal(await row.count(), 0);

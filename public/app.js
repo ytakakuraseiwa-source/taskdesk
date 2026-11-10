@@ -150,7 +150,6 @@ function saveHistory(kind, text) {
     historyNotice.textContent = '端末に保存できませんでした。';
     return false;
   }
-  filter = 'records';
   historyNotice.textContent = '記録タブに保存しました。';
   render();
   if (user) sync();
