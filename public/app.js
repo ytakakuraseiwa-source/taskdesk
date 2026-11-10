@@ -7,6 +7,10 @@ const storagePrefix = 'taskdesk:v1:';
 const nav = [...document.querySelectorAll('[data-filter]')];
 const suggestions = $('#suggestions');
 const ai = $('#ai');
+const historyDialog = $('#history');
+const historyText = $('#history-text');
+const historyNotice = $('#history-notice');
+const historyDate = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
 let filter = 'all';
 let user = null;
 let scope = 'guest';
@@ -16,6 +20,7 @@ let pullAgain = false;
 let aiRequest;
 let sessionReady = false;
 let sessionLoad = 0;
+let historyTaskId;
 
 function read(key) {
   try {
@@ -71,9 +76,11 @@ function render(animated = [], focusId) {
       const cycle = element('button', 'cycle', task.title);
       cycle.dataset.task = task.id;
       const next = stages[(stages.indexOf(status) + 1) % stages.length];
-      cycle.setAttribute('aria-label', task.title + 'を' + statuses[next] + 'に変更');
-      cycle.title = 'クリックで' + statuses[next] + 'に変更';
+      const action = status === 'done' ? 'の履歴を開く' : 'を' + statuses[next] + 'に変更';
+      cycle.setAttribute('aria-label', task.title + action);
+      cycle.title = status === 'done' ? 'クリックで履歴を開く' : 'クリックで' + statuses[next] + 'に変更';
       cycle.onclick = () => {
+        if (status === 'done') return openHistory(task.id);
         if (change([{ ...task, status: next }], task.id)) tell(statuses[next] + 'に変更しました。');
       };
       const remove = element('button', 'remove', '×');
@@ -87,15 +94,76 @@ function render(animated = [], focusId) {
     return column;
   });
   board.replaceChildren(...columns);
+  if (historyDialog.open) renderHistory();
   if (focused) (board.querySelector('[data-task="' + CSS.escape(focused) + '"]') ??
     nav.find(button => button.dataset.filter === filter)).focus({ preventScroll: true });
 }
+
+function renderHistory() {
+  const task = tasks.get(historyTaskId);
+  if (!task || task.deleted || task.status !== 'done') return historyDialog.close();
+  $('#history-task').textContent = task.title;
+  const entries = [...(task.history ?? [])].sort((a, b) => b.created - a.created);
+  $('#history-entries').replaceChildren(...(entries.length ? entries.map(entry => {
+    const item = element('li', '');
+    const time = element('time', '', historyDate.format(entry.created));
+    time.dateTime = new Date(entry.created).toISOString();
+    item.append(element('strong', '', entry.kind === 'result' ? '結果' : 'コメント'), time, element('p', '', entry.text));
+    return item;
+  }) : [element('li', 'empty', '記録はまだありません')]));
+}
+
+function openHistory(id) {
+  historyTaskId = id;
+  $('#history-form').reset();
+  historyNotice.textContent = '';
+  renderHistory();
+  historyDialog.showModal();
+}
+
+$('#close-history').onclick = () => historyDialog.close();
+historyDialog.addEventListener('close', () => {
+  (board.querySelector('[data-task="' + CSS.escape(historyTaskId) + '"]') ??
+    nav.find(button => button.dataset.filter === filter)).focus({ preventScroll: true });
+});
+$('#history-form').onsubmit = event => {
+  event.preventDefault();
+  const text = historyText.value.trim();
+  if (!text) {
+    historyNotice.textContent = '内容を入力してください。';
+    return historyText.focus();
+  }
+  const next = read(scope);
+  const task = next.get(historyTaskId);
+  if (task?.status !== 'done' || task.deleted) return historyDialog.close();
+  const entry = { id: crypto.randomUUID(), kind: $('#history-kind').value, text, created: Date.now(), pending: Boolean(user) };
+  next.set(task.id, { ...task, history: [...(task.history ?? []), entry] });
+  if (!persist(next)) {
+    historyNotice.textContent = '端末に保存できませんでした。';
+    return;
+  }
+  historyText.value = '';
+  historyNotice.textContent = '履歴に追加しました。';
+  renderHistory();
+  historyText.focus();
+  if (user) sync();
+};
+$('#reopen-task').onclick = () => {
+  const task = read(scope).get(historyTaskId);
+  if (task?.status !== 'done' || task.deleted) return historyDialog.close();
+  if (change([{ ...task, status: 'todo' }], task.id)) tell('未着手に戻しました。');
+  else historyNotice.textContent = '端末に保存できませんでした。';
+};
 
 function change(changes, focusId) {
   const next = read(scope);
   for (const task of changes) {
     if (!user && task.deleted) next.delete(task.id);
-    else next.set(task.id, { ...task, updated: Math.max(Date.now(), (task.updated ?? 0) + 1), dirty: Boolean(user) });
+    else {
+      const saved = next.get(task.id);
+      next.set(task.id, { ...task, history: saved?.history ?? task.history,
+        updated: Math.max(Date.now(), (saved?.updated ?? task.updated ?? 0) + 1), dirty: Boolean(user) });
+    }
   }
   if (!persist(next)) return false;
   render(changes.map(task => task.id), focusId);
@@ -130,18 +198,28 @@ async function sync() {
   try {
     do {
       pullAgain = false;
-      const pending = [...read(scope).values()].filter(task => task.dirty).slice(0, 50);
+      const pending = [...read(scope).values()].filter(task => task.dirty || task.history?.some(entry => entry.pending))
+        .slice(0, 10).map(({ history, ...task }) => ({
+          ...task, historyAdditions: (history ?? []).filter(entry => entry.pending).slice(0, 1)
+        }));
       const { tasks: remote } = pending.length ? await api('/api/tasks', pending) : await api('/api/tasks');
       if (activeScope !== scope) break;
       const next = new Map(remote.filter(task => !task.deleted).map(task => [task.id, task]));
       for (const task of read(scope).values()) {
-        if (task.dirty && !pending.some(item => item.id === task.id && item.updated === task.updated)) {
-          next.set(task.id, task);
+        const sent = pending.find(item => item.id === task.id);
+        const server = next.get(task.id);
+        const dirty = task.dirty && task.updated !== sent?.updated;
+        const current = dirty ? task : server;
+        if (!current) continue;
+        const history = new Map((server?.history ?? []).map(entry => [entry.id, entry]));
+        for (const entry of task.history ?? []) {
+          if (entry.pending && !history.has(entry.id) && !sent?.historyAdditions.some(item => item.id === entry.id)) history.set(entry.id, entry);
         }
+        next.set(task.id, { ...current, history: [...history.values()] });
       }
       if (!persist(next)) throw new Error('保存に失敗しました。');
       render();
-      pullAgain ||= [...tasks.values()].some(task => task.dirty);
+      pullAgain ||= [...tasks.values()].some(task => task.dirty || task.history?.some(entry => entry.pending));
     } while (pullAgain);
     if (activeScope === scope) label.textContent = '同期済み · ' + user.name;
   } catch {
@@ -185,7 +263,10 @@ async function loadSession() {
       scope = 'user:' + user.id;
       tasks = read(scope);
       const merged = new Map(tasks);
-      for (const task of guest.values()) if (!merged.has(task.id)) merged.set(task.id, { ...task, dirty: true });
+      for (const task of guest.values()) {
+        if (!merged.has(task.id)) merged.set(task.id, { ...task, dirty: true,
+          history: (task.history ?? []).map(entry => ({ ...entry, pending: true })) });
+      }
       if (guest.size && persist(merged)) {
         try { localStorage.removeItem(storagePrefix + 'guest'); } catch {}
       }

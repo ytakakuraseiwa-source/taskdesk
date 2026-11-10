@@ -89,6 +89,21 @@ textarea::placeholder { color: #66738b; }
 #choices { display: grid; gap: 6px; margin: 9px 0 12px; }
 #choices label { display: flex; align-items: baseline; gap: 8px; overflow-wrap: anywhere; }
 .notice { min-height: 1.6em; margin: 13px 0 0; color: #384a70; font-size: 13px; }
+.history { width: min(570px, calc(100% - 28px)); max-height: 85vh; padding: 22px; color: inherit; }
+.history[open] { animation: arrive .22s ease both; }
+.history::backdrop { background: #25345160; backdrop-filter: blur(5px); }
+.history-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#history-task, #history-entries li p { white-space: pre-wrap; overflow-wrap: anywhere; }
+#history-task { font-weight: 650; }
+.history select { display: block; margin: 4px 0 10px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; font: inherit; color: inherit; background: #fff; }
+.history textarea { border: 1px solid var(--line); border-radius: 10px; padding: 8px; margin: 4px 0 10px; background: #fff; }
+.history textarea:focus-visible { border-color: #5672bf; box-shadow: 0 0 0 1px #5672bf; }
+#history-notice { min-height: 1.6em; margin: 4px 0; color: var(--muted); font-size: 13px; }
+.history h3 { margin: 8px 0; font-size: 14px; }
+#history-entries { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+#history-entries li { border: 1px solid var(--line); border-radius: 10px; background: #fff9; padding: 8px 12px; }
+#history-entries li p { margin: 3px 0 0; }
+#history-entries time { margin-left: 8px; color: var(--muted); font-size: 12px; }
 .skeleton {
   position: fixed; inset: 0; z-index: 2; pointer-events: none; padding: 43px 4vw 0 calc(228px + 4vw);
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: 58px 160px 168px;

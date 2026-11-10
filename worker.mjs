@@ -4,7 +4,14 @@ const flowCookie = '__Host-taskdesk-oauth';
 const encoder = new TextEncoder();
 const aiModel = '@cf/meta/llama-3.1-8b-instruct-fast';
 const aiFallback = '@cf/google/gemma-4-26b-a4b-it';
-const taskQuery = 'SELECT id,title,status,created,updated,deleted FROM tasks WHERE user_id=? AND deleted=0 ORDER BY created DESC';
+const taskQuery = `SELECT id,title,status,created,updated,deleted, (
+  SELECT json_group_array(json_object('id',h.id,'kind',h.kind,'text',h.text,'created',h.created) ORDER BY h.created DESC,h.id)
+  FROM task_history h WHERE h.user_id=tasks.user_id AND h.task_id=tasks.id
+) AS history FROM tasks WHERE user_id=? AND deleted=0 ORDER BY created DESC`;
+const insertHistory = `INSERT INTO task_history (user_id,task_id,id,kind,text,created)
+  SELECT ?,?,json_extract(value,'$.id'),json_extract(value,'$.kind'),json_extract(value,'$.text'),json_extract(value,'$.created')
+  FROM json_each(?) WHERE true ON CONFLICT(user_id,task_id,id) DO NOTHING`;
+const uuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const upsert = `INSERT INTO tasks (user_id,id,title,status,created,updated,deleted) VALUES (?,?,?,?,?,?,?)
   ON CONFLICT(user_id,id) DO UPDATE SET title=excluded.title,status=excluded.status,updated=excluded.updated,deleted=excluded.deleted
   WHERE excluded.updated > tasks.updated`;
@@ -121,11 +128,20 @@ async function readBody(request) {
 }
 
 function validTask(task) {
-  return task && typeof task.id === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(task.id) &&
+  return task && typeof task.id === 'string' && uuid.test(task.id) &&
     typeof task.title === 'string' && task.title.trim() && task.title.length <= 500 &&
     ['todo', 'doing', 'done'].includes(task.status) && [0, 1].includes(task.deleted) &&
     Number.isSafeInteger(task.created) && task.created > 0 && Number.isSafeInteger(task.updated) &&
-    task.updated >= task.created && task.updated <= Date.now() + 300_000;
+    task.updated >= task.created && task.updated <= Date.now() + 300_000 &&
+    (task.historyAdditions === undefined || (Array.isArray(task.historyAdditions) && task.historyAdditions.length <= 5 &&
+      task.historyAdditions.every(entry => entry && typeof entry.id === 'string' && uuid.test(entry.id) &&
+        ['comment', 'result'].includes(entry.kind) && typeof entry.text === 'string' &&
+        entry.text.trim() && entry.text.length <= 1000 && Number.isSafeInteger(entry.created) &&
+        entry.created > 0 && entry.created <= Date.now() + 300_000)));
+}
+
+function taskResponse(result) {
+  return json({ tasks: result.results.map(task => ({ ...task, history: JSON.parse(task.history) })) });
 }
 
 function suggestionTitles(content) {
@@ -188,18 +204,20 @@ async function handle(request, env) {
     return response;
   }
   if (path === '/api/tasks' && request.method === 'GET') {
-    return json({ tasks: (await env.DB.prepare(taskQuery).bind(user.id).all()).results });
+    return taskResponse(await env.DB.prepare(taskQuery).bind(user.id).all());
   }
   if (path === '/api/tasks' && request.method === 'POST') {
     const tasks = await readBody(request);
     if (!Array.isArray(tasks) || !tasks.length || tasks.length > 50 || !tasks.every(validTask)) {
       return json({ error: 'タスクの内容を確認してください。' }, 400);
     }
-    const statements = tasks.map(task => env.DB.prepare(upsert).bind(
-      user.id, task.id, task.title, task.status, task.created, task.updated, task.deleted
-    ));
+    const statements = tasks.flatMap(task => {
+      const save = env.DB.prepare(upsert).bind(user.id, task.id, task.title, task.status, task.created, task.updated, task.deleted);
+      return task.historyAdditions?.length ?
+        [save, env.DB.prepare(insertHistory).bind(user.id, task.id, JSON.stringify(task.historyAdditions))] : [save];
+    });
     const results = await env.DB.batch([...statements, env.DB.prepare(taskQuery).bind(user.id)]);
-    return json({ tasks: results.at(-1).results });
+    return taskResponse(results.at(-1));
   }
   if (path === '/api/ai' && request.method === 'POST') return suggest(request, env, user);
   return json({ error: 'ページが見つかりません。' }, 404);

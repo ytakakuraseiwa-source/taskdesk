@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { Readable } from 'node:stream';
@@ -12,7 +12,9 @@ const publicFiles = new Map([
   ['/app.js', ['app.js', 'text/javascript']],
   ['/mark.svg', ['mark.svg', 'image/svg+xml']]
 ]);
-const migration = await readFile(new URL('../migrations/0001.sql', import.meta.url), 'utf8');
+const migrations = new URL('../migrations/', import.meta.url);
+const migration = (await Promise.all((await readdir(migrations)).filter(file => file.endsWith('.sql')).sort()
+  .map(file => readFile(new URL(file, migrations), 'utf8')))).join('\n');
 const security = Object.fromEntries((await readFile(new URL('../public/_headers', import.meta.url), 'utf8'))
   .trim().split('\n').slice(1).map(line => line.trim().split(/: (.*)/).slice(0, 2)));
 

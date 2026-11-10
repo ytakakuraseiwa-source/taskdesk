@@ -149,17 +149,30 @@ test('日本語変換の Enter、複数行、下書きと再読み込み', async
   });
 });
 
-test('クリックで3状態を循環し、絞り込みと削除が保存される', async () => {
+test('完了タスクに履歴を追加し、再開・絞り込み・削除ができる', async () => {
   await withPage(async page => {
     const memo = await open(page);
     await memo.fill('見積書');
     await memo.press('Enter');
     const row = task(page, '見積書');
-    for (const label of ['進行中', '完了', '未着手']) {
+    for (const label of ['進行中', '完了']) {
       await row.click();
       await page.locator('.column').filter({ has: page.getByRole('heading', { name: new RegExp(label) }) })
         .locator('.cycle').filter({ hasText: '見積書' }).waitFor();
     }
+    await row.click();
+    const history = page.getByRole('dialog');
+    await history.getByLabel('内容').fill('見積もりを送付した');
+    await history.getByRole('button', { name: '履歴に追加' }).click();
+    await page.reload();
+    await row.click();
+    await history.getByText('見積もりを送付した').waitFor();
+    await history.getByRole('button', { name: '未着手に戻す' }).click();
+    await row.click();
+    await row.click();
+    await row.click();
+    await history.getByText('見積もりを送付した').waitFor();
+    await history.getByRole('button', { name: '未着手に戻す' }).click();
     await row.click();
     await page.reload();
     await page.locator('[data-filter=done]').click();
@@ -181,7 +194,7 @@ test('モバイル幅でも横スクロールせず、モーション軽減を�
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     assert.equal(await page.locator('#skeleton div').first().evaluate(el => getComputedStyle(el).animationName), 'none');
     await memo.fill('携帯から追加');
-    await page.locator('button[type=submit]').click();
+    await page.locator('#capture button[type=submit]').click();
     await task(page, '携帯から追加').waitFor();
   }, { viewport: { width: 360, height: 780 }, reducedMotion: 'reduce' });
 });
@@ -215,6 +228,15 @@ test('Google OAuth・SQLite 同期・アカウント分離・AI 提案の選択�
     await task(page, '宿を予約する').waitFor();
     assert.equal(await task(page, '持ち物を確認する').count(), 0);
     await task(page, '宿を予約する').click();
+    await task(page, '宿を予約する').click();
+    await task(page, '宿を予約する').click();
+    const history = page.getByRole('dialog');
+    await history.getByLabel('内容').fill('予約先を確認した');
+    await history.getByRole('button', { name: '履歴に追加' }).click();
+    await history.getByLabel('種類').selectOption('result');
+    await history.getByLabel('内容').fill('予約が完了した');
+    await history.getByRole('button', { name: '履歴に追加' }).click();
+    await history.getByRole('button', { name: '履歴を閉じる' }).click();
     await page.getByText('同期済み · user-a').waitFor();
 
     await withPage(async other => {
@@ -227,8 +249,10 @@ test('Google OAuth・SQLite 同期・アカウント分離・AI 提案の選択�
       await open(secondDevice);
       await login(secondDevice, 'user-a');
       await secondDevice.getByText('同期済み · user-a').waitFor();
-      const doing = secondDevice.locator('.column').filter({ has: secondDevice.getByRole('heading', { name: /進行中/ }) });
-      await doing.locator('.cycle').filter({ hasText: '宿を予約する' }).waitFor();
+      await secondDevice.getByRole('button', { name: '宿を予約するの履歴を開く' }).click();
+      const history = secondDevice.getByRole('dialog');
+      await history.getByText('予約先を確認した').waitFor();
+      await history.getByText('予約が完了した').waitFor();
     });
     await page.locator('#logout').click();
     await page.locator('#login').waitFor();
