@@ -14,7 +14,7 @@ const bindings = {
     async run(model, input) {
       assert.equal(model, '@cf/google/gemma-4-26b-a4b-it');
       assert.equal(JSON.parse(input.messages[1].content).memo, '旅行を準備する');
-      return { response: '["宿を予約する","日程を決める","持ち物を確認する"]' };
+      return { choices: [{ message: { content: '["宿を予約する","日程を決める","持ち物を確認する"]' } }] };
     }
   }
 };
