@@ -130,7 +130,7 @@ textarea::placeholder { color: #66738b; }
 @media (max-width: 560px) {
   .shell { display: block; }
   .sidebar { height: auto; position: static; padding: 13px; gap: 9px; }
-  nav { grid-template-columns: repeat(4, 1fr); }
+  nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   nav button { padding: 5px; gap: 4px; font-size: 11px; }
   .sidebar .eyebrow, .key-hint { display: none; }
   .account { padding: 0 6px; grid-auto-flow: column; justify-content: start; align-items: center; }

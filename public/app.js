@@ -54,23 +54,30 @@ function element(tag, className, content) {
 
 function render(animated = [], focusId) {
   const active = [...tasks.values()].filter(task => !task.deleted);
-  const counts = Object.fromEntries(stages.map(status => [status, active.filter(task => task.status === status).length]));
+  const groups = Object.fromEntries([...stages, 'records'].map(status => [status, []]));
+  for (const task of active) {
+    const key = task.status === 'done' && task.history?.length ? 'records' : task.status;
+    groups[key].push(task);
+  }
+  const boardCount = active.length - groups.records.length;
   nav.forEach(button => {
     const value = button.dataset.filter;
     button.setAttribute('aria-pressed', value === filter);
-    button.lastElementChild.textContent = value === 'all' ? active.length : counts[value];
+    button.lastElementChild.textContent = value === 'all' ? boardCount : groups[value].length;
   });
-  $('#board-title').textContent = filter === 'all' ? 'すべてのタスク' : statuses[filter];
-  $('#total').textContent = (filter === 'all' ? active.length : counts[filter]) + ' 件';
+  $('#board-title').textContent = filter === 'all' ? 'すべてのタスク' : filter === 'records' ? '記録' : statuses[filter];
+  $('#total').textContent = (filter === 'all' ? boardCount : groups[filter].length) + ' 件';
   board.classList.toggle('filtered', filter !== 'all');
   const focused = focusId ?? document.activeElement?.dataset.task;
-  const columns = (filter === 'all' ? stages : [filter]).map(status => {
+  const columns = (filter === 'all' ? stages : [filter]).map(group => {
+    const recorded = group === 'records';
+    const status = recorded ? 'done' : group;
     const column = element('section', 'glass column');
     const heading = element('h3', '');
-    heading.append(element('span', 'dot ' + status), element('span', '', statuses[status]), element('span', '', counts[status]));
+    heading.append(element('span', 'dot ' + status), element('span', '', recorded ? '記録済みのタスク' : statuses[status]), element('span', '', groups[group].length));
     column.append(heading);
-    const rows = active.filter(task => task.status === status).sort((a, b) => b.created - a.created);
-    if (!rows.length) column.append(element('p', 'empty', 'タスクはありません'));
+    const rows = groups[group].sort((a, b) => recorded ? latestRecord(b) - latestRecord(a) : b.created - a.created);
+    if (!rows.length) column.append(element('p', 'empty', recorded ? '記録はまだありません' : 'タスクはありません'));
     for (const task of rows) {
       const row = element('div', 'task' + (animated.includes(task.id) ? ' arrival' : ''));
       const cycle = element('button', 'cycle', task.title);
@@ -97,6 +104,10 @@ function render(animated = [], focusId) {
   if (historyDialog.open) renderHistory();
   if (focused) (board.querySelector('[data-task="' + CSS.escape(focused) + '"]') ??
     nav.find(button => button.dataset.filter === filter)).focus({ preventScroll: true });
+}
+
+function latestRecord(task) {
+  return task.history.reduce((latest, entry) => Math.max(latest, entry.created), 0);
 }
 
 function renderHistory() {
@@ -139,8 +150,9 @@ function saveHistory(kind, text) {
     historyNotice.textContent = '端末に保存できませんでした。';
     return false;
   }
-  historyNotice.textContent = '履歴に追加しました。';
-  renderHistory();
+  filter = 'records';
+  historyNotice.textContent = '記録タブに保存しました。';
+  render();
   if (user) sync();
   return true;
 }
@@ -163,8 +175,11 @@ $('#record-completion').onclick = () => {
 $('#reopen-task').onclick = () => {
   const task = read(scope).get(historyTaskId);
   if (task?.status !== 'done' || task.deleted) return historyDialog.close();
-  if (change([{ ...task, status: 'todo' }], task.id)) tell('未着手に戻しました。');
-  else historyNotice.textContent = '端末に保存できませんでした。';
+  if (change([{ ...task, status: 'todo' }], task.id)) {
+    nav[0].click();
+    board.querySelector('[data-task="' + CSS.escape(task.id) + '"]')?.focus();
+    tell('未着手に戻しました。');
+  } else historyNotice.textContent = '端末に保存できませんでした。';
 };
 
 function change(changes, focusId) {
