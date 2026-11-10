@@ -52,10 +52,10 @@
       <select id="history-kind"><option value="comment">コメント</option><option value="result">結果</option></select>
       <label for="history-text">内容</label>
       <textarea id="history-text" rows="3" maxlength="1000" required autofocus placeholder="コメントや結果を書く…"></textarea>
-      <div class="actions"><button id="reopen-task" type="button">未着手に戻す</button><button type="submit" class="primary">履歴に追加</button></div>
+      <div class="actions"><button id="reopen-task" type="button">未着手に戻す</button><button id="record-completion" type="button">完了だけ記録</button><button type="submit" class="primary">履歴に追加</button></div>
       <p id="history-notice" role="status"></p>
     </form>
-    <h3>記録</h3><ol id="history-entries"></ol>
+    <h3 id="history-records" tabindex="-1">記録</h3><ol id="history-entries"></ol>
   </dialog>
 </body>
 </html>

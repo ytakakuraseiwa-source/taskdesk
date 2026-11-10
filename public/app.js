@@ -126,6 +126,25 @@ historyDialog.addEventListener('close', () => {
   (board.querySelector('[data-task="' + CSS.escape(historyTaskId) + '"]') ??
     nav.find(button => button.dataset.filter === filter)).focus({ preventScroll: true });
 });
+function saveHistory(kind, text) {
+  const next = read(scope);
+  const task = next.get(historyTaskId);
+  if (task?.status !== 'done' || task.deleted) {
+    historyDialog.close();
+    return false;
+  }
+  const entry = { id: crypto.randomUUID(), kind, text, created: Date.now(), pending: Boolean(user) };
+  next.set(task.id, { ...task, history: [...(task.history ?? []), entry] });
+  if (!persist(next)) {
+    historyNotice.textContent = '端末に保存できませんでした。';
+    return false;
+  }
+  historyNotice.textContent = '履歴に追加しました。';
+  renderHistory();
+  if (user) sync();
+  return true;
+}
+
 $('#history-form').onsubmit = event => {
   event.preventDefault();
   const text = historyText.value.trim();
@@ -133,20 +152,13 @@ $('#history-form').onsubmit = event => {
     historyNotice.textContent = '内容を入力してください。';
     return historyText.focus();
   }
-  const next = read(scope);
-  const task = next.get(historyTaskId);
-  if (task?.status !== 'done' || task.deleted) return historyDialog.close();
-  const entry = { id: crypto.randomUUID(), kind: $('#history-kind').value, text, created: Date.now(), pending: Boolean(user) };
-  next.set(task.id, { ...task, history: [...(task.history ?? []), entry] });
-  if (!persist(next)) {
-    historyNotice.textContent = '端末に保存できませんでした。';
-    return;
+  if (saveHistory($('#history-kind').value, text)) {
+    historyText.value = '';
+    historyText.focus();
   }
-  historyText.value = '';
-  historyNotice.textContent = '履歴に追加しました。';
-  renderHistory();
-  historyText.focus();
-  if (user) sync();
+};
+$('#record-completion').onclick = () => {
+  if (saveHistory('result', '完了')) $('#history-records').focus();
 };
 $('#reopen-task').onclick = () => {
   const task = read(scope).get(historyTaskId);

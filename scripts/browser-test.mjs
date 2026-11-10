@@ -162,11 +162,14 @@ test('完了タスクに履歴を追加し、再開・絞り込み・削除が�
     }
     await row.click();
     const history = page.getByRole('dialog');
+    await history.getByRole('button', { name: '完了だけ記録' }).click();
+    await history.locator('#history-entries').getByText('完了', { exact: true }).waitFor();
     await history.getByLabel('内容').fill('見積もりを送付した');
     await history.getByRole('button', { name: '履歴に追加' }).click();
     await page.reload();
     await row.click();
     await history.getByText('見積もりを送付した').waitFor();
+    await history.locator('#history-entries').getByText('完了', { exact: true }).waitFor();
     await history.getByRole('button', { name: '未着手に戻す' }).click();
     await row.click();
     await row.click();
