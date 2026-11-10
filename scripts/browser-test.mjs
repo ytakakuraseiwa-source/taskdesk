@@ -12,7 +12,7 @@ const bindings = {
   GOOGLE_CLIENT_SECRET: 'browser-test-secret',
   AI: {
     async run(model, input) {
-      assert.equal(model, '@cf/google/gemma-4-26b-a4b-it');
+      assert.equal(model, '@cf/meta/llama-3.1-8b-instruct-fast');
       assert.equal(JSON.parse(input.messages[1].content).memo, '旅行を準備する');
       return { choices: [{ message: { content: '["宿を予約する","日程を決める","持ち物を確認する"]' } }] };
     }

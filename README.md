@@ -13,7 +13,7 @@ PC ファーストのタスク管理アプリ。起動直後からメモを入�
 | localStorage / sessionStorage | 通信を待たずにタスクを保存し、タブ内の入力途中のメモを再読み込み後に復元する。アカウントごとにタスクの端末キャッシュを分ける。 |
 | Cloudflare Workers と Static Assets | 同一オリジンで静的画面と API を配信し、Cloudflare 上で OAuth のコールバックを処理する。 |
 | Cloudflare D1 と SQL | セッション、タスク、AI 使用回数を永続化する。ユーザー ID で検索と更新を限定し、まとめて更新する際は D1 のバッチを使う。 |
-| Workers AI / Gemma 4 26B A4B | Workers のバインディングからメモの分解を実行し、日本語の提案を返す。選択 UI に渡す前に形式を検証する。 |
+| Workers AI / Llama 3.1 8B Instruct Fast | Workers のバインディングからメモを日本語のタスクに分解する。短いメモの応答時間を抑えるため高速版を選び、選択 UI に渡す前に形式を検証する。 |
 | Google OAuth 2.0 / OpenID Connect | Google の本人識別子でアカウントを管理する。認可コード、state、PKCE を使い、アプリのセッションは HttpOnly Cookie と D1 に保存したトークンハッシュで管理する。 |
 | Node.js 24 と組み込み SQLite | ローカルでも同じ Worker と SQL を動かし、Cloudflare や Google のアカウントなしで開発できる。 |
 | Playwright と実 Chrome | フォーカス、キー入力、画面遷移、Cookie、再読み込みを実ブラウザ上で検証する。 |
@@ -43,5 +43,5 @@ npm run test:e2e
 公式資料
 
 - [Cloudflare Workers AI のバインディング](https://developers.cloudflare.com/workers-ai/get-started/workers-wrangler/)
-- [Gemma 4 26B A4B のモデル仕様](https://developers.cloudflare.com/workers-ai/models/gemma-4-26b-a4b-it/)
+- [Llama 3.1 8B Instruct Fast のモデル仕様](https://developers.cloudflare.com/workers-ai/models/llama-3.1-8b-instruct-fast/)
 - [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect)
