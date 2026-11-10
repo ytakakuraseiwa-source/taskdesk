@@ -82,6 +82,7 @@ textarea::placeholder { color: #66738b; }
 .task:hover { box-shadow: 0 5px 15px #43537d16; }
 .task button { border: 0; background: transparent; box-shadow: none; }
 .task .cycle { text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.completed-time { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
 .task .remove { color: var(--muted); padding-inline: 8px; }
 .arrival { animation: arrive .27s ease both; }
 @keyframes arrive { from { opacity: .3; transform: translateY(7px) scale(.98); } }

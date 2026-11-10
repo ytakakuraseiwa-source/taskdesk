@@ -81,6 +81,11 @@ function render(animated = [], focusId) {
     for (const task of rows) {
       const row = element('div', 'task' + (animated.includes(task.id) ? ' arrival' : ''));
       const cycle = element('button', 'cycle', task.title);
+      if (recorded) {
+        const completed = element('time', 'completed-time', '完了 ' + historyDate.format(task.updated));
+        completed.dateTime = new Date(task.updated).toISOString();
+        cycle.append(completed);
+      }
       cycle.dataset.task = task.id;
       const next = stages[(stages.indexOf(status) + 1) % stages.length];
       const action = status === 'done' ? 'の履歴を開く' : 'を' + statuses[next] + 'に変更';

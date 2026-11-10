@@ -173,6 +173,9 @@ test('完了タスクに履歴を追加し、再開・絞り込み・削除が�
     await page.locator('[data-filter=done]').click();
     assert.equal(await row.count(), 0);
     await page.locator('[data-filter=records]').click();
+    const completedTime = row.locator('time');
+    assert.match(await completedTime.textContent(), /^完了 .+\d{1,2}:\d{2}$/);
+    assert.ok(Number.isFinite(Date.parse(await completedTime.getAttribute('datetime'))));
     await row.click();
     await history.getByText('見積もりを送付した').waitFor();
     await history.locator('#history-entries').getByText('完了', { exact: true }).waitFor();
