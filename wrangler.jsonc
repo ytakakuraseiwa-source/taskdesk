@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "taskdesk",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-10",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/auth/*"]
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "taskdesk",
+    "database_id": "00000000-0000-0000-0000-000000000000"
+  }],
+  "ai": { "binding": "AI" }
+}

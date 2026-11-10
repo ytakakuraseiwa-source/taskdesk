@@ -1,0 +1,15 @@
+{
+  "name": "taskdesk",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/local.mjs",
+    "test": "node --test",
+    "dev:worker": "wrangler dev",
+    "test:e2e": "node scripts/browser-test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.65.0",
+    "wrangler": "4.159.0"
+  }
+}

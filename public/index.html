@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6fb">
+  <title>Taskdesk</title>
+  <link rel="icon" href="/mark.svg">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/"><img src="/mark.svg" alt="" width="32" height="32">Taskdesk</a>
+      <p class="eyebrow">ワークスペース</p>
+      <nav aria-label="タスクを絞り込む">
+        <button data-filter="all" aria-pressed="true"><i>▤</i> すべて <span></span></button>
+        <button data-filter="todo" aria-pressed="false"><i class="dot todo"></i> 未着手 <span></span></button>
+        <button data-filter="doing" aria-pressed="false"><i class="dot doing"></i> 進行中 <span></span></button>
+        <button data-filter="done" aria-pressed="false"><i class="dot done"></i> 完了 <span></span></button>
+      </nav>
+      <div class="account">
+        <span id="sync-label">この端末に保存</span>
+        <a id="login" href="/auth/google">Google でログイン</a>
+        <button id="logout" hidden>ログアウト</button>
+      </div>
+    </aside>
+    <main>
+      <header><div><p id="date" class="eyebrow"></p><h1>タスク</h1></div><span class="key-hint"><kbd>/</kbd> メモに移動</span></header>
+      <form id="capture" class="glass" aria-label="メモを追加">
+        <label for="memo">新規メモ</label>
+        <textarea id="memo" placeholder="ここにメモを書く…" rows="2" maxlength="500" autofocus></textarea>
+        <div class="actions"><span class="key-hint"><kbd>Enter</kbd> で追加 ・ <kbd>Shift + Enter</kbd> で改行</span>
+          <button type="button" id="ai">✧ AIで分解</button><button class="primary" type="submit">＋ 追加</button></div>
+      </form>
+      <section id="suggestions" class="glass suggestions" aria-labelledby="suggestion-title" hidden>
+        <h2 id="suggestion-title">AIの提案</h2><div id="choices"></div>
+        <button id="dismiss">閉じる</button> <button id="add-suggestions" class="primary">選択したタスクを追加</button>
+      </section>
+      <div class="board-heading"><h2 id="board-title">すべてのタスク</h2><span id="total"></span></div>
+      <div id="board" class="board" aria-labelledby="board-title"></div>
+      <p id="notice" class="notice" role="status"></p>
+    </main>
+  </div>
+  <div class="skeleton" id="skeleton" aria-hidden="true"><div></div><div></div><div></div><div></div><div></div></div>
+</body>
+</html>
