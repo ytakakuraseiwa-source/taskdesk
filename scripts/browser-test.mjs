@@ -164,7 +164,7 @@ test('完了タスクに履歴を追加し、再開・絞り込み・削除が�
     const history = page.getByRole('dialog');
     await history.getByRole('button', { name: '完了だけ記録' }).click();
     await history.locator('#history-entries').getByText('完了', { exact: true }).waitFor();
-    await history.getByLabel('内容').fill('見積もりを送付した');
+    await history.getByLabel('コメント').fill('見積もりを送付した');
     await history.getByRole('button', { name: '履歴に追加' }).click();
     assert.equal(await page.locator('[data-filter=all]').getAttribute('aria-pressed'), 'true');
     await history.getByRole('button', { name: '履歴を閉じる' }).click();
@@ -173,6 +173,7 @@ test('完了タスクに履歴を追加し、再開・絞り込み・削除が�
     await page.locator('[data-filter=done]').click();
     assert.equal(await row.count(), 0);
     await page.locator('[data-filter=records]').click();
+    await page.getByRole('list', { name: 'コメント' }).getByText('見積もりを送付した').waitFor();
     const completedTime = row.locator('time');
     assert.match(await completedTime.textContent(), /^完了 .+\d{1,2}:\d{2}$/);
     assert.ok(Number.isFinite(Date.parse(await completedTime.getAttribute('datetime'))));
@@ -244,10 +245,9 @@ test('Google OAuth・SQLite 同期・アカウント分離・AI 提案の選択�
     await task(page, '宿を予約する').click();
     await task(page, '宿を予約する').click();
     const history = page.getByRole('dialog');
-    await history.getByLabel('内容').fill('予約先を確認した');
+    await history.getByLabel('コメント').fill('予約先を確認した');
     await history.getByRole('button', { name: '履歴に追加' }).click();
-    await history.getByLabel('種類').selectOption('result');
-    await history.getByLabel('内容').fill('予約が完了した');
+    await history.getByLabel('コメント').fill('予約が完了した');
     await history.getByRole('button', { name: '履歴に追加' }).click();
     await history.getByRole('button', { name: '履歴を閉じる' }).click();
     await page.getByText('同期済み · user-a').waitFor();

@@ -101,6 +101,15 @@ function render(animated = [], focusId) {
         if (change([{ ...task, deleted: 1 }], task.id)) tell('タスクを削除しました。');
       };
       row.append(cycle, remove);
+      if (recorded) {
+        const comments = orderedHistory(task).filter(entry => entry.kind !== 'result' || entry.text !== '完了');
+        if (comments.length) {
+          const list = element('ul', 'record-comments');
+          list.setAttribute('aria-label', 'コメント');
+          list.append(...comments.map(entry => element('li', '', entry.text)));
+          row.append(list);
+        }
+      }
       column.append(row);
     }
     return column;
@@ -115,16 +124,20 @@ function latestRecord(task) {
   return task.history.reduce((latest, entry) => Math.max(latest, entry.created), 0);
 }
 
+function orderedHistory(task) {
+  return [...(task.history ?? [])].sort((a, b) => b.created - a.created);
+}
+
 function renderHistory() {
   const task = tasks.get(historyTaskId);
   if (!task || task.deleted || task.status !== 'done') return historyDialog.close();
   $('#history-task').textContent = task.title;
-  const entries = [...(task.history ?? [])].sort((a, b) => b.created - a.created);
+  const entries = orderedHistory(task);
   $('#history-entries').replaceChildren(...(entries.length ? entries.map(entry => {
     const item = element('li', '');
     const time = element('time', '', historyDate.format(entry.created));
     time.dateTime = new Date(entry.created).toISOString();
-    item.append(element('strong', '', entry.kind === 'result' ? '結果' : 'コメント'), time, element('p', '', entry.text));
+    item.append(time, element('p', '', entry.text));
     return item;
   }) : [element('li', 'empty', '記録はまだありません')]));
 }
@@ -168,7 +181,7 @@ $('#history-form').onsubmit = event => {
     historyNotice.textContent = '内容を入力してください。';
     return historyText.focus();
   }
-  if (saveHistory($('#history-kind').value, text)) {
+  if (saveHistory('comment', text)) {
     historyText.value = '';
     historyText.focus();
   }
