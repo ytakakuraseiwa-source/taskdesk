@@ -5,11 +5,11 @@ const encoder = new TextEncoder();
 const aiModel = '@cf/meta/llama-3.1-8b-instruct-fast';
 const aiFallback = '@cf/google/gemma-4-26b-a4b-it';
 const taskQuery = `SELECT id,title,status,created,updated,deleted, (
-  SELECT json_group_array(json_object('id',h.id,'kind',h.kind,'text',h.text,'created',h.created) ORDER BY h.created DESC,h.id)
+  SELECT json_group_array(json_object('id',h.id,'kind',h.kind,'text',h.text,'created',h.created,'stage',h.stage) ORDER BY h.created DESC,h.id)
   FROM task_history h WHERE h.user_id=tasks.user_id AND h.task_id=tasks.id
 ) AS history FROM tasks WHERE user_id=? AND deleted=0 ORDER BY created DESC`;
-const insertHistory = `INSERT INTO task_history (user_id,task_id,id,kind,text,created)
-  SELECT ?,?,json_extract(value,'$.id'),json_extract(value,'$.kind'),json_extract(value,'$.text'),json_extract(value,'$.created')
+const insertHistory = `INSERT INTO task_history (user_id,task_id,id,kind,text,created,stage)
+  SELECT ?,?,json_extract(value,'$.id'),json_extract(value,'$.kind'),json_extract(value,'$.text'),json_extract(value,'$.created'),json_extract(value,'$.stage')
   FROM json_each(?) WHERE true ON CONFLICT(user_id,task_id,id) DO NOTHING`;
 const uuid = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
 const upsert = `INSERT INTO tasks (user_id,id,title,status,created,updated,deleted) VALUES (?,?,?,?,?,?,?)
@@ -137,7 +137,8 @@ function validTask(task) {
       task.historyAdditions.every(entry => entry && typeof entry.id === 'string' && uuid.test(entry.id) &&
         ['comment', 'result'].includes(entry.kind) && typeof entry.text === 'string' &&
         entry.text.trim() && entry.text.length <= 1000 && Number.isSafeInteger(entry.created) &&
-        entry.created > 0 && entry.created <= Date.now() + 300_000)));
+        entry.created > 0 && entry.created <= Date.now() + 300_000 &&
+        (entry.stage == null || ['doing', 'done'].includes(entry.stage)))));
 }
 
 function taskResponse(result) {

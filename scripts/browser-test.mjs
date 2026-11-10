@@ -160,14 +160,12 @@ test('完了タスクに履歴を追加し、再開・絞り込み・削除が�
       await page.locator('.column').filter({ has: page.getByRole('heading', { name: new RegExp(label) }) })
         .locator('.cycle').filter({ hasText: '見積書' }).waitFor();
     }
-    await row.click();
     const history = page.getByRole('dialog');
-    await history.getByRole('button', { name: '完了だけ記録' }).click();
-    await history.locator('#history-entries').getByText('完了', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '見積書にコメント' }).click();
     await history.getByLabel('コメント').fill('見積もりを送付した');
-    await history.getByRole('button', { name: '履歴に追加' }).click();
+    await history.getByRole('button', { name: '記録に追加' }).click();
+    await history.waitFor({ state: 'hidden' });
     assert.equal(await page.locator('[data-filter=all]').getAttribute('aria-pressed'), 'true');
-    await history.getByRole('button', { name: '履歴を閉じる' }).click();
     assert.equal(await row.count(), 0);
     await page.reload();
     await page.locator('[data-filter=done]').click();
@@ -179,13 +177,16 @@ test('完了タスクに履歴を追加し、再開・絞り込み・削除が�
     assert.ok(Number.isFinite(Date.parse(await completedTime.getAttribute('datetime'))));
     await row.click();
     await history.getByText('見積もりを送付した').waitFor();
-    await history.locator('#history-entries').getByText('完了', { exact: true }).waitFor();
     await history.getByRole('button', { name: '未着手に戻す' }).click();
     await row.click();
     await row.click();
+    await row.click();
+    assert.equal(await row.count(), 0);
+    assert.equal(await history.count(), 0);
     await page.locator('[data-filter=records]').click();
     await row.click();
     await history.getByText('見積もりを送付した').waitFor();
+    await history.locator('#history-entries').getByText('完了', { exact: true }).waitFor();
     await history.getByRole('button', { name: '未着手に戻す' }).click();
     await row.click();
     await page.reload();
@@ -242,14 +243,17 @@ test('Google OAuth・SQLite 同期・アカウント分離・AI 提案の選択�
     await task(page, '宿を予約する').waitFor();
     assert.equal(await task(page, '持ち物を確認する').count(), 0);
     await task(page, '宿を予約する').click();
-    await task(page, '宿を予約する').click();
-    await task(page, '宿を予約する').click();
+    await page.getByRole('button', { name: '宿を予約するにコメント' }).click();
     const history = page.getByRole('dialog');
     await history.getByLabel('コメント').fill('予約先を確認した');
-    await history.getByRole('button', { name: '履歴に追加' }).click();
+    await history.getByRole('button', { name: 'コメントを保存' }).click();
+    await history.waitFor({ state: 'hidden' });
+    await page.getByRole('button', { name: '宿を予約するを完了に変更' }).click();
+    await page.getByRole('button', { name: '宿を予約するにコメント' }).click();
+    await history.getByText('予約先を確認した').waitFor();
     await history.getByLabel('コメント').fill('予約が完了した');
-    await history.getByRole('button', { name: '履歴に追加' }).click();
-    await history.getByRole('button', { name: '履歴を閉じる' }).click();
+    await history.getByRole('button', { name: '記録に追加' }).click();
+    await history.waitFor({ state: 'hidden' });
     await page.getByText('同期済み · user-a').waitFor();
 
     await withPage(async other => {

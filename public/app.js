@@ -56,7 +56,8 @@ function render(animated = [], focusId) {
   const active = [...tasks.values()].filter(task => !task.deleted);
   const groups = Object.fromEntries([...stages, 'records'].map(status => [status, []]));
   for (const task of active) {
-    const key = task.status === 'done' && task.history?.length ? 'records' : task.status;
+    const key = task.status === 'done' && task.history?.some(entry => entry.stage !== 'doing' && entry.created >= task.updated)
+      ? 'records' : task.status;
     groups[key].push(task);
   }
   const boardCount = active.length - groups.records.length;
@@ -88,11 +89,12 @@ function render(animated = [], focusId) {
       }
       cycle.dataset.task = task.id;
       const next = stages[(stages.indexOf(status) + 1) % stages.length];
-      const action = status === 'done' ? 'の履歴を開く' : 'を' + statuses[next] + 'に変更';
+      const action = recorded ? 'の履歴を開く' : status === 'done' ? 'を記録に移す' : 'を' + statuses[next] + 'に変更';
       cycle.setAttribute('aria-label', task.title + action);
-      cycle.title = status === 'done' ? 'クリックで履歴を開く' : 'クリックで' + statuses[next] + 'に変更';
+      cycle.title = recorded ? 'クリックで履歴を開く' : status === 'done' ? 'クリックで記録に移す' : 'クリックで' + statuses[next] + 'に変更';
       cycle.onclick = () => {
-        if (status === 'done') return openHistory(task.id);
+        if (recorded) return openHistory(task.id);
+        if (status === 'done') return saveHistory(task.id, 'result', '完了');
         if (change([{ ...task, status: next }], task.id)) tell(statuses[next] + 'に変更しました。');
       };
       const remove = element('button', 'remove', '×');
@@ -100,7 +102,14 @@ function render(animated = [], focusId) {
       remove.onclick = () => {
         if (change([{ ...task, deleted: 1 }], task.id)) tell('タスクを削除しました。');
       };
-      row.append(cycle, remove);
+      row.append(cycle);
+      if (status !== 'todo' && !recorded) {
+        const comment = element('button', 'comment', 'コメント');
+        comment.setAttribute('aria-label', task.title + 'にコメント');
+        comment.onclick = () => openHistory(task.id);
+        row.append(comment);
+      }
+      row.append(remove);
       if (recorded) {
         const comments = orderedHistory(task).filter(entry => entry.kind !== 'result' || entry.text !== '完了');
         if (comments.length) {
@@ -121,7 +130,7 @@ function render(animated = [], focusId) {
 }
 
 function latestRecord(task) {
-  return task.history.reduce((latest, entry) => Math.max(latest, entry.created), 0);
+  return (task.history ?? []).reduce((latest, entry) => Math.max(latest, entry.created), 0);
 }
 
 function orderedHistory(task) {
@@ -130,8 +139,10 @@ function orderedHistory(task) {
 
 function renderHistory() {
   const task = tasks.get(historyTaskId);
-  if (!task || task.deleted || task.status !== 'done') return historyDialog.close();
+  if (!task || task.deleted || task.status === 'todo') return historyDialog.close();
   $('#history-task').textContent = task.title;
+  $('#reopen-task').hidden = task.status !== 'done';
+  $('#history-form button[type=submit]').textContent = task.status === 'done' ? '記録に追加' : 'コメントを保存';
   const entries = orderedHistory(task);
   $('#history-entries').replaceChildren(...(entries.length ? entries.map(entry => {
     const item = element('li', '');
@@ -155,21 +166,19 @@ historyDialog.addEventListener('close', () => {
   (board.querySelector('[data-task="' + CSS.escape(historyTaskId) + '"]') ??
     nav.find(button => button.dataset.filter === filter)).focus({ preventScroll: true });
 });
-function saveHistory(kind, text) {
+function saveHistory(id, kind, text) {
   const next = read(scope);
-  const task = next.get(historyTaskId);
-  if (task?.status !== 'done' || task.deleted) {
-    historyDialog.close();
-    return false;
-  }
-  const entry = { id: crypto.randomUUID(), kind, text, created: Date.now(), pending: Boolean(user) };
+  const task = next.get(id);
+  if (!task || task.status === 'todo' || task.deleted || (kind === 'result' && task.status !== 'done')) return false;
+  const entry = { id: crypto.randomUUID(), kind, text, stage: task.status,
+    created: Math.max(Date.now(), task.updated), pending: Boolean(user) };
   next.set(task.id, { ...task, history: [...(task.history ?? []), entry] });
   if (!persist(next)) {
     historyNotice.textContent = '端末に保存できませんでした。';
     return false;
   }
-  historyNotice.textContent = '記録タブに保存しました。';
-  render();
+  render([], id);
+  tell(task.status === 'done' ? '記録タブに保存しました。' : 'コメントを保存しました。');
   if (user) sync();
   return true;
 }
@@ -181,13 +190,7 @@ $('#history-form').onsubmit = event => {
     historyNotice.textContent = '内容を入力してください。';
     return historyText.focus();
   }
-  if (saveHistory('comment', text)) {
-    historyText.value = '';
-    historyText.focus();
-  }
-};
-$('#record-completion').onclick = () => {
-  if (saveHistory('result', '完了')) $('#history-records').focus();
+  if (saveHistory(historyTaskId, 'comment', text)) historyDialog.close();
 };
 $('#reopen-task').onclick = () => {
   const task = read(scope).get(historyTaskId);
@@ -206,7 +209,8 @@ function change(changes, focusId) {
     else {
       const saved = next.get(task.id);
       next.set(task.id, { ...task, history: saved?.history ?? task.history,
-        updated: Math.max(Date.now(), (saved?.updated ?? task.updated ?? 0) + 1), dirty: Boolean(user) });
+        updated: Math.max(Date.now(), (saved?.updated ?? task.updated ?? 0) + 1,
+          task.status === 'done' ? latestRecord(saved ?? task) + 1 : 0), dirty: Boolean(user) });
     }
   }
   if (!persist(next)) return false;
