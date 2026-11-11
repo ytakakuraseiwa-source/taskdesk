@@ -242,7 +242,6 @@ test('Google OAuth・SQLite 同期・アカウント分離・AI 提案の選択�
     await page.locator('#add-suggestions').click();
     await task(page, '宿を予約する').waitFor();
     assert.equal(await task(page, '持ち物を確認する').count(), 0);
-    await task(page, '宿を予約する').click();
     await page.getByRole('button', { name: '宿を予約するにコメント' }).click();
     const history = page.getByRole('dialog');
     await history.getByLabel('コメント').fill('予約先を確認した');
@@ -250,6 +249,8 @@ test('Google OAuth・SQLite 同期・アカウント分離・AI 提案の選択�
     await history.waitFor({ state: 'hidden' });
     const commentWithCount = page.getByRole('button', { name: '宿を予約するにコメント（1件）' });
     await commentWithCount.locator('.comment-count').getByText('1', { exact: true }).waitFor();
+    await page.getByRole('button', { name: '宿を予約するを進行中に変更' }).click();
+    await commentWithCount.waitFor();
     await page.getByRole('button', { name: '宿を予約するを完了に変更' }).click();
     await commentWithCount.click();
     await history.getByText('予約先を確認した').waitFor();

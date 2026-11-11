@@ -103,7 +103,7 @@ function render(animated = [], focusId) {
         if (change([{ ...task, deleted: 1 }], task.id)) tell('タスクを削除しました。');
       };
       row.append(cycle);
-      if (status !== 'todo' && !recorded) {
+      if (!recorded) {
         const comment = element('button', 'comment', 'コメント');
         const count = task.history?.filter(isComment).length ?? 0;
         if (count) {
@@ -148,7 +148,7 @@ function orderedHistory(task) {
 
 function renderHistory() {
   const task = tasks.get(historyTaskId);
-  if (!task || task.deleted || task.status === 'todo') return historyDialog.close();
+  if (!task || task.deleted) return historyDialog.close();
   $('#history-task').textContent = task.title;
   $('#reopen-task').hidden = task.status !== 'done';
   $('#history-form button[type=submit]').textContent = task.status === 'done' ? '記録に追加' : 'コメントを保存';
@@ -178,8 +178,9 @@ historyDialog.addEventListener('close', () => {
 function saveHistory(id, kind, text) {
   const next = read(scope);
   const task = next.get(id);
-  if (!task || task.status === 'todo' || task.deleted || (kind === 'result' && task.status !== 'done')) return false;
-  const entry = { id: crypto.randomUUID(), kind, text, stage: task.status,
+  if (!task || task.deleted || (kind === 'result' && task.status !== 'done')) return false;
+  const stage = task.status === 'done' ? 'done' : 'doing';
+  const entry = { id: crypto.randomUUID(), kind, text, stage,
     created: Math.max(Date.now(), task.updated), pending: Boolean(user) };
   next.set(task.id, { ...task, history: [...(task.history ?? []), entry] });
   if (!persist(next)) {
@@ -205,6 +206,7 @@ $('#reopen-task').onclick = () => {
   const task = read(scope).get(historyTaskId);
   if (task?.status !== 'done' || task.deleted) return historyDialog.close();
   if (change([{ ...task, status: 'todo' }], task.id)) {
+    historyDialog.close();
     nav[0].click();
     board.querySelector('[data-task="' + CSS.escape(task.id) + '"]')?.focus();
     tell('未着手に戻しました。');
