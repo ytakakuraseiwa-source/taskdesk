@@ -248,8 +248,10 @@ test('Google OAuth・SQLite 同期・アカウント分離・AI 提案の選択�
     await history.getByLabel('コメント').fill('予約先を確認した');
     await history.getByRole('button', { name: 'コメントを保存' }).click();
     await history.waitFor({ state: 'hidden' });
+    const commentWithCount = page.getByRole('button', { name: '宿を予約するにコメント（1件）' });
+    await commentWithCount.locator('.comment-count').getByText('1', { exact: true }).waitFor();
     await page.getByRole('button', { name: '宿を予約するを完了に変更' }).click();
-    await page.getByRole('button', { name: '宿を予約するにコメント' }).click();
+    await commentWithCount.click();
     await history.getByText('予約先を確認した').waitFor();
     await history.getByLabel('コメント').fill('予約が完了した');
     await history.getByRole('button', { name: '記録に追加' }).click();

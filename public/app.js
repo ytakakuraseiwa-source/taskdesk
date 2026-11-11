@@ -105,13 +105,18 @@ function render(animated = [], focusId) {
       row.append(cycle);
       if (status !== 'todo' && !recorded) {
         const comment = element('button', 'comment', 'コメント');
-        comment.setAttribute('aria-label', task.title + 'にコメント');
+        const count = task.history?.filter(isComment).length ?? 0;
+        if (count) {
+          comment.classList.add('has-comments');
+          comment.append(element('span', 'comment-count', count));
+        }
+        comment.setAttribute('aria-label', task.title + 'にコメント' + (count ? '（' + count + '件）' : ''));
         comment.onclick = () => openHistory(task.id);
         row.append(comment);
       }
       row.append(remove);
       if (recorded) {
-        const comments = orderedHistory(task).filter(entry => entry.kind !== 'result' || entry.text !== '完了');
+        const comments = orderedHistory(task).filter(isComment);
         if (comments.length) {
           const list = element('ul', 'record-comments');
           list.setAttribute('aria-label', 'コメント');
@@ -127,6 +132,10 @@ function render(animated = [], focusId) {
   if (historyDialog.open) renderHistory();
   if (focused) (board.querySelector('[data-task="' + CSS.escape(focused) + '"]') ??
     nav.find(button => button.dataset.filter === filter)).focus({ preventScroll: true });
+}
+
+function isComment(entry) {
+  return entry.kind !== 'result' || entry.text !== '完了';
 }
 
 function latestRecord(task) {
