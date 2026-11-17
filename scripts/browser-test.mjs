@@ -203,6 +203,23 @@ test('完了タスクに履歴を追加し、再開・絞り込み・削除が�
   });
 });
 
+test('旧形式の履歴はタスクの更新日時より古くても記録に表示される', async () => {
+  await withPage(async page => {
+    await open(page);
+    await page.evaluate(() => {
+      const updated = Date.now();
+      localStorage.setItem('taskdesk:v1:guest', JSON.stringify([{
+        id: crypto.randomUUID(), title: '旧形式の完了タスク', status: 'done',
+        created: updated - 2000, updated, deleted: 0,
+        history: [{ id: crypto.randomUUID(), kind: 'comment', text: '保存済みの履歴', created: updated - 1000, stage: null }]
+      }]));
+    });
+    await page.reload();
+    await page.locator('[data-filter=records]').click();
+    await page.getByText('保存済みの履歴', { exact: true }).waitFor();
+  });
+});
+
 test('モバイル幅でも横スクロールせず、モーション軽減を尊重する', async () => {
   await withPage(async page => {
     const memo = await open(page);

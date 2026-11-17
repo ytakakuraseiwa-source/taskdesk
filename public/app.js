@@ -56,7 +56,8 @@ function render(animated = [], focusId) {
   const active = [...tasks.values()].filter(task => !task.deleted);
   const groups = Object.fromEntries([...stages, 'records'].map(status => [status, []]));
   for (const task of active) {
-    const key = task.status === 'done' && task.history?.some(entry => entry.stage !== 'doing' && entry.created >= task.updated)
+    const key = task.status === 'done' && task.history?.some(entry =>
+      entry.stage == null || (entry.stage === 'done' && entry.created >= task.updated))
       ? 'records' : task.status;
     groups[key].push(task);
   }
